@@ -1,0 +1,51 @@
+# ============================================================
+# pyproject.toml — Python project configuration
+# ============================================================
+# This file configures pytest and tells it where to find our code.
+# Without this, pytest doesn't know that 'python/' is a source folder.
+# ============================================================
+
+[tool.pytest.ini_options]
+# Minimum Python version required to run tests
+minversion = "7.0"
+
+# Where pytest looks for tests
+testpaths = ["tests"]
+
+# Pattern for test file names
+python_files = ["test_*.py", "*_test.py"]
+
+# Pattern for test class names
+python_classes = ["Test*"]
+
+# Pattern for test function names
+python_functions = ["test_*"]
+
+# Show extra info in test output
+addopts = [
+    "-v",           # Verbose mode
+    "--tb=short",   # Short traceback format
+    "--strict-markers",  # Strict marker checking
+]
+
+# Markers for categorizing tests
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "e2e: marks tests as end-to-end tests",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.flake8]
+max-line-length = 100
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+]

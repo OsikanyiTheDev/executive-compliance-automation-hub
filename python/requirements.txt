@@ -1,0 +1,25 @@
+# ============================================================
+# Python Dependencies
+# ============================================================
+# This file lists every Python package our project needs.
+# To install: pip install -r python/requirements.txt
+# ============================================================
+
+# --- HTTP & API ---
+requests>=2.31.0          # Simple HTTP library for API calls
+httpx>=0.25.0            # Modern async HTTP client (for webhooks)
+
+# --- Data handling ---
+python-dateutil>=2.8.2   # Advanced date parsing (calendar math)
+
+# --- AWS (used in v0.9+) ---
+# boto3>=1.34.0          # AWS SDK for Python
+# botocore>=1.34.0       # Low-level AWS (boto3 dependency)
+
+# --- Testing ---
+pytest>=7.4.0            # Unit & integration testing
+pytest-cov>=4.1.0        # Code coverage reports
+
+# --- Code quality ---
+black>=23.10.0           # Code formatter
+flake8>=6.1.0            # Linter
