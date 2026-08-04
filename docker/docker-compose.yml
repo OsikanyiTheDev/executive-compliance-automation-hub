@@ -1,0 +1,150 @@
+# ============================================================
+# Docker Compose — Local Development Stack
+# ============================================================
+# Usage:
+#   docker compose up -d       (start)
+#   docker compose down        (stop)
+#   docker compose logs -f     (view logs)
+#   docker compose ps          (status)
+# ============================================================
+# Services:
+#   1. postgres  — Database for n8n
+#   2. n8n       — Automation engine
+# ============================================================
+
+# ============================================================
+# SERVICES
+# ============================================================
+services:
+
+  # ----------------------------------------------------------
+  # PostgreSQL Database
+  # ----------------------------------------------------------
+  postgres:
+    # Official PostgreSQL 16 image (Alpine variant = small)
+    image: postgres:16-alpine
+
+    # Container name (easier than auto-generated hashes)
+    container_name: executive_postgres
+
+    # Auto-restart on failure
+    restart: unless-stopped
+
+    # Environment variables for PostgreSQL
+    environment:
+      POSTGRES_DB: ${DB_POSTGRESDB_DATABASE:-n8n}
+      POSTGRES_USER: ${DB_POSTGRESDB_USER:-n8n}
+      POSTGRES_PASSWORD: ${DB_POSTGRESDB_PASSWORD:-changeme}
+
+    # Named volume for data persistence
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    # Health check — confirms Postgres is accepting connections
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_POSTGRESDB_USER:-n8n}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    # Internal network only — no need to expose Postgres to host
+    # (n8n talks to it via the 'n8n_network')
+    expose:
+      - "5432"
+
+    networks:
+      - n8n_network
+
+  # ----------------------------------------------------------
+  # n8n Automation Engine
+  # ----------------------------------------------------------
+  n8n:
+    # Build from our custom Dockerfile
+    build:
+      context: ./n8n
+      dockerfile: Dockerfile
+
+    # Or pull from Docker Hub:
+    # image: n8nio/n8n:latest
+
+    container_name: executive_n8n
+
+    restart: unless-stopped
+
+    # Port mapping: host:container
+    # 5678:5678 means "expose container port 5678 as host port 5678"
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+
+    # Environment variables for n8n
+    environment:
+      # --- Database configuration ---
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE:-n8n}
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD:-changeme}
+
+      # --- n8n core configuration ---
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+
+      # --- Security ---
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-this-in-production}
+
+      # --- Timezone ---
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      TZ: ${TZ:-UTC}
+
+      # --- Execution data pruning (keep DB small) ---
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"  # 7 days in hours
+
+      # --- User management ---
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-changeme}
+
+    # Volumes for persistence and custom nodes
+    volumes:
+      # n8n data (workflows, credentials, encryption keys)
+      - n8n_data:/home/node/.n8n
+
+      # Mount our workflows folder (read-only) so we can version-control them
+      - ../n8n/workflows:/home/node/.n8n/workflows:ro
+
+    # Depends on Postgres being healthy
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - n8n_network
+
+# ============================================================
+# VOLUMES
+# ============================================================
+# Named volumes persist data across container restarts.
+# Without these, all data is lost when containers are removed.
+# ============================================================
+volumes:
+  postgres_data:
+    name: executive_postgres_data
+  n8n_data:
+    name: executive_n8n_data
+
+# ============================================================
+# NETWORKS
+# ============================================================
+# Custom network for service discovery.
+# Containers on the same network can reach each other by service name.
+# 'postgres' resolves to the postgres container's IP automatically.
+# ============================================================
+networks:
+  n8n_network:
+    name: executive_n8n_network
+    driver: bridge
